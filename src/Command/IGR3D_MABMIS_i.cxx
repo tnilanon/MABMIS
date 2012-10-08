@@ -2485,7 +2485,7 @@ void DoPCATraining(char** deformationFieldFileNames, int numFiles, char** allImg
 				char outDFName[MAX_FILE_NAME_LENGTH];
 				MakeFileName(outDFName, "simulated", "_deform_", i, "mha");
 
-				itksys::SystemTools::CopyFileAlways(curInterTempFileName, outDFName, true);
+				itksys::SystemTools::CopyFileAlways(curInterTempFileName, outDFName);
 			}
 			// remove irrelevant files
 			for (int i = 0; i < numAllCombinations; i++)

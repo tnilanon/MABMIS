@@ -3140,7 +3140,7 @@ void LoadIntoArray(char* resampledDeformationFieldFileName, float* df_vector)
 	im_y = im_size[1];
 	im_z = im_size[2];
 
-	int dim = 3*im_x*im_y*im_z;
+//	int dim = 3*im_x*im_y*im_z;
 
 	// load original image
 	DeformationFieldIteratorType itOrigin(dfImage, dfImage->GetLargestPossibleRegion() );

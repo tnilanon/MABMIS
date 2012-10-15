@@ -39,7 +39,7 @@ int numSampleEachDirection = 4; // n  n^t total number of intermediate templates
 
 // global variables
 int atlas_size = 0;
-unsigned int filenumber = 0;
+int filenumber = 0;
 int simulate_size = 0;
 int sample_size = 0;
 int allfilenumber = 0;
@@ -152,7 +152,7 @@ int main( int argc, char *argv[] )
 	std::ifstream idFile;
 	idFile.open (argv[1]); //ios::binary for opening in binary mode
 	idFile.seekg (0, ios::end);// get length of file:
-	filenumber = (unsigned int)(idFile.tellg()/3 + 0.5);
+	filenumber = idFile.tellg() / 3;
 	idFile.seekg (0, ios::beg);
 	idFile.close();
 
@@ -237,8 +237,6 @@ int main( int argc, char *argv[] )
 			delete[] tempfileseg_img;
 		}
 
-	std::cerr << " Done! " << std::endl;
-
 	if (!allFilesExist)
 	{
 		std::cerr << "Please check if all .hdr and .img file exist!" << std::endl;
@@ -252,7 +250,8 @@ int main( int argc, char *argv[] )
 		std::cerr << "All .hdr files and corresponding .img files exist" << std::endl;
 	}
 	// in the future, the size or resolution of each image should be checked as well.
-
+    
+	std::cerr << " Done! " << std::endl;
 	// do sanity check
 	////////////////////////////////
 	// read the size of images
@@ -1875,7 +1874,7 @@ void TreeBasedRegistrationFast(int* tree, int tree_size, char** originalIntensit
 	{
 		if (isDebug)
 			std::cerr << ii << ", ";
-		int i = index[ii];
+//		int i = index[ii];
 		int curnode = index[ii];
 		int parentnode = tree[curnode];
 
@@ -1981,7 +1980,7 @@ void TreeBasedRegistrationFastOniTree(int* itree_t, int itree_size_t, int atlas_
 	{
 		//if (isDebug)
 			std::cerr << ii << ", ";
-		int i = index[ii];
+//		int i = index[ii];
 		int curnode = index[ii];
 		int parentnode = itree_t[curnode];
 
@@ -2316,8 +2315,8 @@ void DoPCATraining(char** deformationFieldFileNames, int numFiles, char** allImg
 		//vnl_matlab_print(vcl_cerr, svd_e.V());
 		//vcl_cerr << vcl_endl;
 		//vcl_cerr << vcl_endl;
-		int rows = svd_e.V().rows();
-		int cols = svd_e.V().cols();
+//		int rows = svd_e.V().rows();
+//		int cols = svd_e.V().cols();
 
 		// build eigen-vector matrix of original deformation field matrix
 

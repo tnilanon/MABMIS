@@ -29,7 +29,7 @@
 bool isRunReg = true; //true;  // do registration to get pairwise deformation field
 bool isConverged = false;  // the iterative update can stop
 bool isEvaluate = false;  // if false, we do not know the ground-truth of labels
-bool isDebug = false; //false;//true; // if true, print out more information
+bool isDebug = true; //false;//true; // if true, print out more information
 bool isCompressed = false;//true; //false; // if true, compress deformation field by *1000 and
 
 //int numEigenVector = 2; // t
@@ -57,7 +57,7 @@ int itereach0 = 0;int itereach1 = 1;int itereach2 = 2;int itereach3 = 3;
 double sigmaDef = 1.5;
 double sigmaDef10 = 1.0;double sigmaDef15 = 1.5;double sigmaDef20 = 2.0;
 double sigmaDef25 = 2.5;double sigmaDef30 = 3.0;double sigmaDef35 = 3.5;
-bool doHistMatch = true;
+bool doHistMatch = false;
 bool doHistMatchTrue = true;bool doHistMatchFalse = false;
 // 
 DeformationFieldType::SpacingType df_spacing;
@@ -79,12 +79,22 @@ typedef itk::CastImageFilter< ShortDeformationFieldType, DeformationFieldType >	
    */
 using namespace std;
 
-void DiffeoDemonsRegistrationWithParameters(char* fixedImageFileName, char* movingImageFileName, 
-											char* deformedImageFileName, char* deformationFieldFileName, 
-											double sigmaDef, bool doHistMatch, int* iterInResolutions);
-void DiffeoDemonsRegistrationWithInitialWithParameters(char* fixedImageFileName, char* movingImageFileName, 
-													   char* initDeformationFieldFileName, char* deformedImageFileName, char* deformationFieldFileName, 
-													   double sigmaDef, bool doHistMatch, int* iterInResolutions);
+void MultiDiffeoDemonsRegistrationWithParameters(const char *fixedImageFileName, const char *fixedSegmentationFileName,
+                                                 const char *movingImageFileName, const char *movingSegmentationFileName,
+                                                 const char *deformedImageFileName, const char *deformationFieldFileName,
+                                                 double sigmaDef, bool doHistMatch, const int *iterInResolutions);
+void MultiDiffeoDemonsRegistrationWithInitialWithParameters(const char *fixedImageFileName, const char *fixedSegmentationFileName,
+                                                            const char *movingImageFileName, const char *movingSegmentationFileName,
+                                                            const char *initialDeformationFieldFileName,
+                                                            const char *deformedImageFileName, const char *deformationFieldFileName,
+                                                            double sigmaDef, bool doHistMatch, const int *iterInResolutions);
+
+//void DiffeoDemonsRegistrationWithParameters(char* fixedImageFileName, char* movingImageFileName, 
+//											char* deformedImageFileName, char* deformationFieldFileName, 
+//											double sigmaDef, bool doHistMatch, int* iterInResolutions);
+//void DiffeoDemonsRegistrationWithInitialWithParameters(char* fixedImageFileName, char* movingImageFileName, 
+//													   char* initDeformationFieldFileName, char* deformedImageFileName, char* deformationFieldFileName, 
+//													   double sigmaDef, bool doHistMatch, int* iterInResolutions);
 void LabelFusion(char* curSampleImgName, char* outSampleSegName, char** allWarpedAtlasImgNames,
 				 char** allDeformationFieldNames, char** allAtlasSegNames, int numOfAtlases);
 void GaussianWeightedLabelFusion(InternalImageType::Pointer curSampleImgPtr, InternalImageType::Pointer outSampleSegPtr,
@@ -98,6 +108,7 @@ void TreeBasedRegistrationFast(int* tree, int tree_size, char** originalIntensit
 							   char** deformedImgFileNames, char** deformationFieldFileNames);
 void TreeBasedRegistrationFastOniTree(int* itree_t, int itree_size_t, int atlas_size_t, int simulate_size_t, int sample_size_t,
 									  char** originalIntensityImageFileNames,
+                                      char** originalLabelImageFileNames,
 									  char** deformedImgFileNames,
 									  char** deformationFieldFileNames);
 bool ValidateTree(int* tree, int tree_size);
@@ -312,20 +323,28 @@ int main( int argc, char *argv[] )
 		{
 			//prepare file names
 			char fixedImageFileName[MAX_FILE_NAME_LENGTH];
+            char fixedSegmentationFileName[MAX_FILE_NAME_LENGTH];
 			char movingImageFileName[MAX_FILE_NAME_LENGTH];
+            char movingSegmentationFileName[MAX_FILE_NAME_LENGTH];
 			char deformedImageFileName[MAX_FILE_NAME_LENGTH];
 			char deformationFieldFileName[MAX_FILE_NAME_LENGTH];
 			MakeFileName(fixedImageFileName, sub_ids[root], "_cbq_", 0, "hdr");
+            MakeFileName(fixedSegmentationFileName, sub_ids[root], "_seg_", 0, "hdr");
 			MakeFileName(movingImageFileName, sub_ids[i], "_cbq_", 0, "hdr");
+            MakeFileName(movingSegmentationFileName, sub_ids[i], "_seg_", 0, "hdr");
 			MakeFileName(deformedImageFileName, sub_ids[root], "_", sub_ids[i], "_cbq_", "reg", "hdr");
 			MakeFileName(deformationFieldFileName, sub_ids[i], "_deform_", 0, "mha");
 			
 			if (!itksys::SystemTools::FileExists(deformationFieldFileName, true))
 			{
 				// rough registration
-				DiffeoDemonsRegistrationWithParameters(fixedImageFileName, movingImageFileName, 
-					deformedImageFileName, deformationFieldFileName, 
-					sigmaDef20, doHistMatchTrue, iterInResolutions[itereach0]);
+//				DiffeoDemonsRegistrationWithParameters(fixedImageFileName, movingImageFileName,
+//					deformedImageFileName, deformationFieldFileName,
+//					sigmaDef20, doHistMatchTrue, iterInResolutions[itereach0]);
+                MultiDiffeoDemonsRegistrationWithParameters(fixedImageFileName, fixedSegmentationFileName,
+                                                            movingImageFileName, movingSegmentationFileName,
+                                                            deformedImageFileName, deformationFieldFileName,
+                                                            sigmaDef20, doHistMatch, iterInResolutions[itereach0]);
 				
 				// compress it	
 				if (isCompressed)
@@ -608,6 +627,7 @@ int main( int argc, char *argv[] )
 		// registration to the root
 		// prepare file names
 		char** originalIntensityImageFileNames = new char*[filenumber];
+        char** originalLabelImageFileNames = new char*[filenumber];
 		char** deformedImgFileNames = new char*[filenumber];
 		char** deformedImgFileNamesImg = new char*[filenumber];
 		char** deformedSegFileNames = new char*[filenumber];
@@ -617,7 +637,9 @@ int main( int argc, char *argv[] )
 		for (int i = 0; i < filenumber; i++)
 		{
 			originalIntensityImageFileNames[i] = new char[MAX_FILE_NAME_LENGTH];
+            originalLabelImageFileNames[i] = new char[MAX_FILE_NAME_LENGTH];
 			MakeFileName(originalIntensityImageFileNames[i], sub_ids[i],"_cbq_",0,"hdr");
+            MakeFileName(originalLabelImageFileNames[i], sub_ids[i],"_seg_",0,"hdr");
 
 			deformedImgFileNames[i] = new char[MAX_FILE_NAME_LENGTH];
 			deformedImgFileNamesImg[i] = new char[MAX_FILE_NAME_LENGTH];
@@ -636,7 +658,7 @@ int main( int argc, char *argv[] )
 		//TreeBasedRegistrationFast(itree, itree_size, originalIntensityImageFileNames,
 		//	deformedImgFileNames, deformationFieldFileNames);
 		TreeBasedRegistrationFastOniTree(itree, itree_size, atlas_size, simulate_size, sample_size,
-			originalIntensityImageFileNames, deformedImgFileNames, deformationFieldFileNames);
+			originalIntensityImageFileNames, originalLabelImageFileNames, deformedImgFileNames, deformationFieldFileNames);
 
 		// warp the corresponding seg file
 		if (isEvaluate)
@@ -699,7 +721,9 @@ int main( int argc, char *argv[] )
 			MakeFileName(originalSegImageFileName, sub_ids[root],"_seg_",0,"hdr");
 
 			char* fixedImgImageFileName = new char[MAX_FILE_NAME_LENGTH];
+            char* fixedSegImageFileName = new char[MAX_FILE_NAME_LENGTH];
 			MakeFileName(fixedImgImageFileName, sub_ids[i],"_cbq_",0,"hdr");
+            MakeFileName(fixedSegImageFileName, sub_ids[i],"_seg_",0,"hdr");
 
 			char* deformedImgFileName = new char[MAX_FILE_NAME_LENGTH];
 			char* deformedImgFileNameImg = new char[MAX_FILE_NAME_LENGTH];
@@ -747,9 +771,14 @@ int main( int argc, char *argv[] )
 			if (isCompressed)
 				CompressDeformationField2Short(inversedDeformationFieldFileName);
 			// //update
-			DiffeoDemonsRegistrationWithInitialWithParameters(fixedImgImageFileName, originalImgImageFileName, 
-				inversedDeformationFieldFileName, deformedImgFileName, inversedDeformationFieldFileName, 
-				sigmaDef15, doHistMatch, iterInResolutions[itereach0]);
+//			DiffeoDemonsRegistrationWithInitialWithParameters(fixedImgImageFileName, originalImgImageFileName, 
+//				inversedDeformationFieldFileName, deformedImgFileName, inversedDeformationFieldFileName,
+//				sigmaDef15, doHistMatch, iterInResolutions[itereach0]);
+            MultiDiffeoDemonsRegistrationWithInitialWithParameters(fixedImgImageFileName, fixedSegImageFileName,
+                                                                   originalImgImageFileName, originalSegImageFileName,
+                                                                   inversedDeformationFieldFileName,
+                                                                   deformedImgFileName, inversedDeformationFieldFileName,
+                                                                   sigmaDef15, doHistMatch, iterInResolutions[itereach0]);
 			// CompressDeformationField2Short(inversedDeformationFieldFileName);
 			// apply deformation field on seg file
 			if (isEvaluate)
@@ -796,9 +825,11 @@ int main( int argc, char *argv[] )
 			{
 				// warp all_index(moving) to sample_index(fixed)
 				char* fixedImgImageFileName = new char[MAX_FILE_NAME_LENGTH]; // index2
+                char* fixedSegImageFileName = new char[MAX_FILE_NAME_LENGTH]; // index2
 				char* movingImgImageFileName = new char[MAX_FILE_NAME_LENGTH];// index1
 				char* movingSegImageFileName = new char[MAX_FILE_NAME_LENGTH];// index1
 				MakeFileName(fixedImgImageFileName, sub_ids[sample_index],"_cbq_",0,"hdr");
+                MakeFileName(fixedSegImageFileName, sub_ids[sample_index],"_seg_",0,"hdr");
 				MakeFileName(movingImgImageFileName, sub_ids[all_index],"_cbq_",0,"hdr");
 				MakeFileName(movingSegImageFileName, sub_ids[all_index],"_seg_",0,"hdr");
 
@@ -843,9 +874,13 @@ int main( int argc, char *argv[] )
 				//ApplyDeformationFieldAndWriteWithFileNames(movingImgImageFileName, 
 				//	deformationFieldFileName, deformedImgImageFileName, true);
 				// update
-				DiffeoDemonsRegistrationWithInitialWithParameters(fixedImgImageFileName, movingImgImageFileName, 
-					deformationFieldFileName, deformedImgImageFileName, deformationFieldFileName, 
-					sigmaDef15, doHistMatch, iterInResolutions[itereach0]);
+//				DiffeoDemonsRegistrationWithInitialWithParameters(fixedImgImageFileName, movingImgImageFileName, 
+//					deformationFieldFileName, deformedImgImageFileName, deformationFieldFileName, 
+//					sigmaDef15, doHistMatch, iterInResolutions[itereach0]);
+                MultiDiffeoDemonsRegistrationWithInitialWithParameters(fixedImgImageFileName, fixedSegImageFileName,
+                                                                       movingImgImageFileName, movingSegImageFileName,
+                                                                       deformationFieldFileName, deformedImgImageFileName, deformationFieldFileName,
+                                                                       sigmaDef15, doHistMatch, iterInResolutions[itereach0]);
 				//CompressDeformationField2Short(deformationFieldFileName);
 				if (isEvaluate)
 				{
@@ -979,194 +1014,53 @@ int main( int argc, char *argv[] )
 	return EXIT_SUCCESS;
 
 }
-void LabelFusion(char* curSampleImgName, char* outSampleSegName, char** allWarpedAtlasImgNames,
-						 char** allDeformationFieldNames, char** allAtlasSegNames, int numOfAtlases)
-{
-	// create pointers for each images including: cur_image, our_seg, 
-	// warpedImg(after histogram matching), warpedSeg (after warping)
 
-	// cur sample image pointer 
-	InternalImageType::Pointer curSampleImgPtr = 0;
-	ReadImage(curSampleImgName, curSampleImgPtr);
-
-	// output sample label image pointer
-	InternalImageType::Pointer outSampleSegPtr = 0;
-	ReadImage(curSampleImgName, outSampleSegPtr);
-
-	// atlas related images pointers
-	InternalImageType::Pointer* warpedImgPtrs = new InternalImageType::Pointer[numOfAtlases];
-	InternalImageType::Pointer* warpedSegPtrs = new InternalImageType::Pointer[numOfAtlases];
-	for (int i = 0; i < numOfAtlases; i++)
-	{
-		// histogram match each warped atlas to the current sample
-		warpedImgPtrs[i] = 0;
-		InternalImageType::Pointer curWarpedAtlasPtr = 0;
-		ReadImage(allWarpedAtlasImgNames[i], curWarpedAtlasPtr);
-		HistogramMatching(curWarpedAtlasPtr, curSampleImgPtr, warpedImgPtrs[i]);
-
-		// load each deformation field
-		DeformationFieldType::Pointer deformFieldPtr = 0;
-		if (!isCompressed)
-			ReadDeformationField(allDeformationFieldNames[i], deformFieldPtr);
-		else
-			DeCompressDeformationFieldFromShort(allDeformationFieldNames[i], deformFieldPtr);
-
-		// warp each atlas label image to the current sample space
-		InternalImageType::Pointer curAtlasSegPtr = 0;
-		ReadImage(allAtlasSegNames[i], curAtlasSegPtr);
-		ApplyDeformationField(curAtlasSegPtr, deformFieldPtr, warpedSegPtrs[i], false);
-	}
-
-	// weighted label fusion
-	GaussianWeightedLabelFusion(curSampleImgPtr, outSampleSegPtr, warpedImgPtrs, warpedSegPtrs, numOfAtlases);
-
-	// output segmentation image
-	WriteImage(outSampleSegName, outSampleSegPtr);
-
-	delete[] warpedImgPtrs;
-	delete[] warpedSegPtrs;
-
-	return;
+inline
+void MultiDiffeoDemonsRegistrationWithParameters(const char *fixedImageFileName, const char *fixedSegmentationFileName,
+                                                 const char *movingImageFileName, const char *movingSegmentationFileName,
+                                                 const char *deformedImageFileName, const char *deformationFieldFileName,
+                                                 double sigmaDef, bool doHistMatch, const int *iterInResolutions) {
+    MultiDiffeoDemonsRegistrationWithInitialWithParameters(fixedImageFileName, fixedSegmentationFileName,
+                                                           movingImageFileName, movingSegmentationFileName,
+                                                           NULL,
+                                                           deformedImageFileName, deformationFieldFileName,
+                                                           sigmaDef, doHistMatch, iterInResolutions);
 }
 
-void GaussianWeightedLabelFusion(InternalImageType::Pointer curSampleImgPtr, InternalImageType::Pointer outSampleSegPtr,
-								 InternalImageType::Pointer* warpedImgPtrs, InternalImageType::Pointer* warpedSegPtrs,
-								 int numOfAtlases)
-{
-	// introduce the iterators of each image
-	InternalImageIteratorType sampleImgIt(curSampleImgPtr, curSampleImgPtr->GetLargestPossibleRegion());//GetRequestedRegion());
-	InternalImageIteratorType sampleSegIt(outSampleSegPtr, outSampleSegPtr->GetLargestPossibleRegion());//GetRequestedRegion());
-	
-	InternalImageIteratorType* warpedImgIts = new InternalImageIteratorType[numOfAtlases];
-	InternalImageIteratorType* warpedSegIts = new InternalImageIteratorType[numOfAtlases];
-	for (int i = 0; i < numOfAtlases; i++)
-	{
-		InternalImageIteratorType it1( warpedImgPtrs[i], warpedImgPtrs[i]->GetLargestPossibleRegion());//GetRequestedRegion() );
-		warpedImgIts[i] = it1;
-		InternalImageIteratorType it2( warpedSegPtrs[i], warpedSegPtrs[i]->GetLargestPossibleRegion());//GetRequestedRegion() );
-		warpedSegIts[i] = it2;
-	}
-
-	InternalImageIteratorType::IndexType idx;
-	InternalImageIteratorType::IndexType idx1;
-
-	int	temp1, temp2;
-	double kernel_sigma = 1; // std of Gaussian approximation, set to the median of all distances 
-	int* index = new int[numOfAtlases];
-	double* sort1 = new double[numOfAtlases];
-	int* label_index = new int[LABEL_MAX+1];
-
-	// for each voxel do label fusion,(vx, vy, vz) is the current location
-	for (int vz = 0; vz < imz; vz++)
-	{
-		//if (isDebug)
-		//	std::cerr << vz << ", ";
-		for (int vy = 0; vy < imy; vy++)
-		{
-			for (int vx = 0; vx < imx; vx++)
-			{
-				// process each voxel
-				idx.SetElement(0,vx);
-				idx.SetElement(1,vy);
-				idx.SetElement(2,vz);
-
-				// get labels from all atlases on this current location
-				int* label_pool = new int[numOfAtlases];
-				for (int i = 0; i < numOfAtlases; i++)
-				{
-
-					warpedSegIts[i].SetIndex(idx);
-					label_pool[i] = warpedSegIts[i].Get();
-				}
-
-				// get the local patch differences
-				double* mse = new double[numOfAtlases];
-				for (int i = 0; i < numOfAtlases; i++) mse[i] = 0.0;
-				for (int i = 0; i < numOfAtlases; i++)
-				{
-					double msec = 0.0;
-					// compare with all other images at the local patch of current voxel
-					// (nx,ny,nz) is the incremental position on (vx,vy,vz)
-					for(int nz = 0-localPatchSize; nz <= localPatchSize; nz++)
-					{
-						for(int ny = 0-localPatchSize; ny <= localPatchSize; ny++)
-						{
-							for(int nx = 0-localPatchSize; nx <= localPatchSize; nx++)
-							{
-								if ((vx+nx>=0)&&(vx+nx<imx)&&(vy+ny>=0)&&(vy+ny<imy)&&(vz+nz>=0)&&(vz+nz<imz))
-								{
-									// within the valid range, and then get voxel intensity
-									// 
-									idx1.SetElement(0,vx+nx);
-									idx1.SetElement(1,vy+ny);
-									idx1.SetElement(2,vz+nz);
-
-									sampleImgIt.SetIndex(idx1);
-									warpedImgIts[i].SetIndex(idx1);
-
-									temp1 = sampleImgIt.Get();
-									temp2 = warpedImgIts[i].Get();
-									
-									// add together differences, squared sum
-									msec += (temp1-temp2)*(temp1-temp2);
-								}
-							}
-						}
-					}
-					mse[i] = sqrt(msec);
-				}// end of for nz
-
-				// sort all difference
-
-				for (int i = 0; i < numOfAtlases; i++)
-				{
-					index[i] = i;
-					sort1[i] = mse[i];
-				}
-				bubbleSort(sort1, index, numOfAtlases);
-				kernel_sigma = sort1[(int)((numOfAtlases-1)/2)]+0.0001;
-				
-				// weight each label
-
-				double* weight_sum =  new double[LABEL_MAX+1];
-				for (int i = 0; i < LABEL_MAX+1; i++) weight_sum[i] = 0.0;
-				for (int i = 0; i < numOfAtlases; i++)
-				{
-					// add-up all weights
-					double weight = 0;
-					weight = exp(0-(mse[i]*mse[i])/(2*kernel_sigma*kernel_sigma));
-					weight_sum[label_pool[i]]+=weight;
-				}
-				
-				// weighted label fusion
-				for (int i = 0; i < LABEL_MAX+1; i++)	label_index[i] = i;
-				
-				bubbleSort(weight_sum, label_index, LABEL_MAX+1);
-				int label_final;
-				label_final = label_index[LABEL_MAX];
-
-				// assign label to the segmentations
-				sampleSegIt.SetIndex(idx);
-				sampleSegIt.Set(label_final);
-				
-
-				delete[] mse;
-				delete[] label_pool;
-				delete[] weight_sum;
-			}
-		}
-	}// end of for vz
-
-	//
-	delete[] warpedImgIts;
-	delete[] warpedSegIts;
-	delete[] sort1;
-	delete[] index;
-	delete[] label_index;
-
-	return;
+void MultiDiffeoDemonsRegistrationWithInitialWithParameters(const char *fixedImageFileName, const char *fixedSegmentationFileName,
+                                                            const char *movingImageFileName, const char *movingSegmentationFileName,
+                                                            const char *initialDeformationFieldFileName,
+                                                            const char *deformedImageFileName, const char *deformationFieldFileName,
+                                                            double sigmaDef, bool doHistMatch, const int *iterInResolutions) {
+    ofstream f;
+    int r;
+    ostringstream buffer;
+    
+    f.open("Fixed.txt");
+    f << fixedSegmentationFileName << endl;
+    f.close();
+    
+    f.open("Moving.txt");
+    f << movingSegmentationFileName << endl;
+    f.close();
+    
+    buffer << "./InfoDemonMain >/dev/null -f " << fixedImageFileName << " -F Fixed.txt -m " << movingImageFileName << " -M Moving.txt";
+    if (initialDeformationFieldFileName != NULL) {
+        buffer << " -b " << initialDeformationFieldFileName;
+    }
+    buffer << " -o " << deformedImageFileName << " -O " << deformationFieldFileName << " -s " << sigmaDef;
+    if (doHistMatch == true) {
+        buffer << " -e";
+    }
+    buffer << " -i " << iterInResolutions[0] << 'x' << iterInResolutions[1] << 'x' << iterInResolutions[2];
+    
+    r = system(buffer.str().c_str());
+    if (r != 0) {
+        cerr << "Error while doing Multi-channel Diffeomorphic Demons Registration" << endl;
+        exit(EXIT_FAILURE);
+    }
+    return;
 }
-
 
 void DiffeoDemonsRegistrationWithParameters(char* fixedImageFileName, char* movingImageFileName, 
 											char* deformedImageFileName, char* deformationFieldFileName, 
@@ -1457,6 +1351,193 @@ void DiffeoDemonsRegistrationWithInitialWithParameters(char* fixedImageFileName,
 
 }
 
+void LabelFusion(char* curSampleImgName, char* outSampleSegName, char** allWarpedAtlasImgNames,
+                 char** allDeformationFieldNames, char** allAtlasSegNames, int numOfAtlases)
+{
+	// create pointers for each images including: cur_image, our_seg,
+	// warpedImg(after histogram matching), warpedSeg (after warping)
+    
+	// cur sample image pointer
+	InternalImageType::Pointer curSampleImgPtr = 0;
+	ReadImage(curSampleImgName, curSampleImgPtr);
+    
+	// output sample label image pointer
+	InternalImageType::Pointer outSampleSegPtr = 0;
+	ReadImage(curSampleImgName, outSampleSegPtr);
+    
+	// atlas related images pointers
+	InternalImageType::Pointer* warpedImgPtrs = new InternalImageType::Pointer[numOfAtlases];
+	InternalImageType::Pointer* warpedSegPtrs = new InternalImageType::Pointer[numOfAtlases];
+	for (int i = 0; i < numOfAtlases; i++)
+	{
+		// histogram match each warped atlas to the current sample
+		warpedImgPtrs[i] = 0;
+		InternalImageType::Pointer curWarpedAtlasPtr = 0;
+		ReadImage(allWarpedAtlasImgNames[i], curWarpedAtlasPtr);
+		HistogramMatching(curWarpedAtlasPtr, curSampleImgPtr, warpedImgPtrs[i]);
+        
+		// load each deformation field
+		DeformationFieldType::Pointer deformFieldPtr = 0;
+		if (!isCompressed)
+			ReadDeformationField(allDeformationFieldNames[i], deformFieldPtr);
+		else
+			DeCompressDeformationFieldFromShort(allDeformationFieldNames[i], deformFieldPtr);
+        
+		// warp each atlas label image to the current sample space
+		InternalImageType::Pointer curAtlasSegPtr = 0;
+		ReadImage(allAtlasSegNames[i], curAtlasSegPtr);
+		ApplyDeformationField(curAtlasSegPtr, deformFieldPtr, warpedSegPtrs[i], false);
+	}
+    
+	// weighted label fusion
+	GaussianWeightedLabelFusion(curSampleImgPtr, outSampleSegPtr, warpedImgPtrs, warpedSegPtrs, numOfAtlases);
+    
+	// output segmentation image
+	WriteImage(outSampleSegName, outSampleSegPtr);
+    
+	delete[] warpedImgPtrs;
+	delete[] warpedSegPtrs;
+    
+	return;
+}
+
+void GaussianWeightedLabelFusion(InternalImageType::Pointer curSampleImgPtr, InternalImageType::Pointer outSampleSegPtr,
+								 InternalImageType::Pointer* warpedImgPtrs, InternalImageType::Pointer* warpedSegPtrs,
+								 int numOfAtlases)
+{
+	// introduce the iterators of each image
+	InternalImageIteratorType sampleImgIt(curSampleImgPtr, curSampleImgPtr->GetLargestPossibleRegion());//GetRequestedRegion());
+	InternalImageIteratorType sampleSegIt(outSampleSegPtr, outSampleSegPtr->GetLargestPossibleRegion());//GetRequestedRegion());
+	
+	InternalImageIteratorType* warpedImgIts = new InternalImageIteratorType[numOfAtlases];
+	InternalImageIteratorType* warpedSegIts = new InternalImageIteratorType[numOfAtlases];
+	for (int i = 0; i < numOfAtlases; i++)
+	{
+		InternalImageIteratorType it1( warpedImgPtrs[i], warpedImgPtrs[i]->GetLargestPossibleRegion());//GetRequestedRegion() );
+		warpedImgIts[i] = it1;
+		InternalImageIteratorType it2( warpedSegPtrs[i], warpedSegPtrs[i]->GetLargestPossibleRegion());//GetRequestedRegion() );
+		warpedSegIts[i] = it2;
+	}
+    
+	InternalImageIteratorType::IndexType idx;
+	InternalImageIteratorType::IndexType idx1;
+    
+	int	temp1, temp2;
+	double kernel_sigma = 1; // std of Gaussian approximation, set to the median of all distances
+	int* index = new int[numOfAtlases];
+	double* sort1 = new double[numOfAtlases];
+	int* label_index = new int[LABEL_MAX+1];
+    
+	// for each voxel do label fusion,(vx, vy, vz) is the current location
+	for (int vz = 0; vz < imz; vz++)
+	{
+		//if (isDebug)
+		//	std::cerr << vz << ", ";
+		for (int vy = 0; vy < imy; vy++)
+		{
+			for (int vx = 0; vx < imx; vx++)
+			{
+				// process each voxel
+				idx.SetElement(0,vx);
+				idx.SetElement(1,vy);
+				idx.SetElement(2,vz);
+                
+				// get labels from all atlases on this current location
+				int* label_pool = new int[numOfAtlases];
+				for (int i = 0; i < numOfAtlases; i++)
+				{
+                    
+					warpedSegIts[i].SetIndex(idx);
+					label_pool[i] = warpedSegIts[i].Get();
+				}
+                
+				// get the local patch differences
+				double* mse = new double[numOfAtlases];
+				for (int i = 0; i < numOfAtlases; i++) mse[i] = 0.0;
+				for (int i = 0; i < numOfAtlases; i++)
+				{
+					double msec = 0.0;
+					// compare with all other images at the local patch of current voxel
+					// (nx,ny,nz) is the incremental position on (vx,vy,vz)
+					for(int nz = 0-localPatchSize; nz <= localPatchSize; nz++)
+					{
+						for(int ny = 0-localPatchSize; ny <= localPatchSize; ny++)
+						{
+							for(int nx = 0-localPatchSize; nx <= localPatchSize; nx++)
+							{
+								if ((vx+nx>=0)&&(vx+nx<imx)&&(vy+ny>=0)&&(vy+ny<imy)&&(vz+nz>=0)&&(vz+nz<imz))
+								{
+									// within the valid range, and then get voxel intensity
+									//
+									idx1.SetElement(0,vx+nx);
+									idx1.SetElement(1,vy+ny);
+									idx1.SetElement(2,vz+nz);
+                                    
+									sampleImgIt.SetIndex(idx1);
+									warpedImgIts[i].SetIndex(idx1);
+                                    
+									temp1 = sampleImgIt.Get();
+									temp2 = warpedImgIts[i].Get();
+									
+									// add together differences, squared sum
+									msec += (temp1-temp2)*(temp1-temp2);
+								}
+							}
+						}
+					}
+					mse[i] = sqrt(msec);
+				}// end of for nz
+                
+				// sort all difference
+                
+				for (int i = 0; i < numOfAtlases; i++)
+				{
+					index[i] = i;
+					sort1[i] = mse[i];
+				}
+				bubbleSort(sort1, index, numOfAtlases);
+				kernel_sigma = sort1[(int)((numOfAtlases-1)/2)]+0.0001;
+				
+				// weight each label
+                
+				double* weight_sum =  new double[LABEL_MAX+1];
+				for (int i = 0; i < LABEL_MAX+1; i++) weight_sum[i] = 0.0;
+				for (int i = 0; i < numOfAtlases; i++)
+				{
+					// add-up all weights
+					double weight = 0;
+					weight = exp(0-(mse[i]*mse[i])/(2*kernel_sigma*kernel_sigma));
+					weight_sum[label_pool[i]]+=weight;
+				}
+				
+				// weighted label fusion
+				for (int i = 0; i < LABEL_MAX+1; i++)	label_index[i] = i;
+				
+				bubbleSort(weight_sum, label_index, LABEL_MAX+1);
+				int label_final;
+				label_final = label_index[LABEL_MAX];
+                
+				// assign label to the segmentations
+				sampleSegIt.SetIndex(idx);
+				sampleSegIt.Set(label_final);
+				
+                
+				delete[] mse;
+				delete[] label_pool;
+				delete[] weight_sum;
+			}
+		}
+	}// end of for vz
+    
+	//
+	delete[] warpedImgIts;
+	delete[] warpedSegIts;
+	delete[] sort1;
+	delete[] index;
+	delete[] label_index;
+    
+	return;
+}
 void generateMSTFromMatrix( double** curDistance, int nnode, int* treeMST )
 {
 
@@ -1935,6 +2016,7 @@ void TreeBasedRegistrationFast(int* tree, int tree_size, char** originalIntensit
 }
 void TreeBasedRegistrationFastOniTree(int* itree_t, int itree_size_t, int atlas_size_t, int simulate_size_t, int sample_size_t,
 									  char** originalIntensityImageFileNames,
+                                      char** originalLabelImageFileNames,
 									  char** deformedImgFileNames,
 									  char** deformationFieldFileNames)
 {
@@ -2036,10 +2118,14 @@ void TreeBasedRegistrationFastOniTree(int* itree_t, int itree_size_t, int atlas_
 
 			//ApplyDeformationFieldAndWriteWithFileNames(originalIntensityImageFileNames[i], 
 			//	outputDeformationFieldFileName, outputImageName, true);
-			DiffeoDemonsRegistrationWithParameters(originalIntensityImageFileNames[root], 
-				originalIntensityImageFileNames[curnode_t], 
-				deformedImgFileNames[curnode_t], deformationFieldFileNames[curnode_t], 
-				sigmaDef, doHistMatch, iterInResolutions[itereach]);
+//			DiffeoDemonsRegistrationWithParameters(originalIntensityImageFileNames[root],
+//				originalIntensityImageFileNames[curnode_t], 
+//				deformedImgFileNames[curnode_t], deformationFieldFileNames[curnode_t], 
+//				sigmaDef, doHistMatch, iterInResolutions[itereach]);
+            MultiDiffeoDemonsRegistrationWithParameters(originalIntensityImageFileNames[root], originalLabelImageFileNames[root],
+                                                        originalIntensityImageFileNames[curnode_t], originalLabelImageFileNames[curnode_t],
+                                                        deformedImgFileNames[curnode_t], deformationFieldFileNames[curnode_t],
+                                                        sigmaDef, doHistMatch, iterInResolutions[itereach]);
 			//if (isCompressed)
 			//	CompressDeformationField2Short(deformationFieldFileNames[curnode_t]);
 
@@ -2055,31 +2141,26 @@ void TreeBasedRegistrationFastOniTree(int* itree_t, int itree_size_t, int atlas_
 			//DiffeoDemonsRegistrationWithInitialDeformationField(originalIntensityImageFileNames[root], originalIntensityImageFileNames[i],
 			//	initDeformationFieldFileName, outputImageName, outputDeformationFieldFileName, sigmaDef, doHistMatch, iterInResolutions);
 			
+            char initDeformationFieldFileName[MAX_FILE_NAME_LENGTH];
+            
 			if ((parentnode < atlas_size_t) || (parentnode >= atlas_size_t+simulate_size_t))
 			{
 				// parent is a real image
-				DiffeoDemonsRegistrationWithInitialWithParameters(originalIntensityImageFileNames[root], 
-					originalIntensityImageFileNames[curnode_t], deformationFieldFileNames[parentnode_t],
-					deformedImgFileNames[curnode_t], deformationFieldFileNames[curnode_t], 
-					sigmaDef, doHistMatch, iterInResolutions[itereach]);
-				//if (isCompressed)
-				//	CompressDeformationField2Short(deformationFieldFileNames[curnode_t]);
+                strcpy(initDeformationFieldFileName, deformationFieldFileNames[parentnode_t]);
 			}
 			else
 			{
 				// parent is a simulated image
-				char initDeformationFieldFileName[MAX_FILE_NAME_LENGTH];
-				MakeFileName(initDeformationFieldFileName, "simulated", "_deform_", 
-					parentnode-atlas_size_t, "mha");
-
-				DiffeoDemonsRegistrationWithInitialWithParameters(originalIntensityImageFileNames[root], 
-					originalIntensityImageFileNames[curnode_t], initDeformationFieldFileName,
-					deformedImgFileNames[curnode_t], deformationFieldFileNames[curnode_t], 
-					sigmaDef, doHistMatch, iterInResolutions[itereach]);
-				//if (isCompressed)
-				//	CompressDeformationField2Short(deformationFieldFileNames[curnode_t]);
-
+				MakeFileName(initDeformationFieldFileName, "simulated", "_deform_", parentnode-atlas_size_t, "mha");
 			}
+            
+            MultiDiffeoDemonsRegistrationWithInitialWithParameters(originalIntensityImageFileNames[root], originalLabelImageFileNames[root],
+                                                                   originalIntensityImageFileNames[curnode_t], originalLabelImageFileNames[curnode_t],
+                                                                   initDeformationFieldFileName,
+                                                                   deformedImgFileNames[curnode_t], deformationFieldFileNames[curnode_t],
+                                                                   sigmaDef, doHistMatch, iterInResolutions[itereach]);
+            //if (isCompressed)
+            //	CompressDeformationField2Short(deformationFieldFileNames[curnode_t]);
 
 		}
 	}

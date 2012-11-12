@@ -351,11 +351,12 @@ int main( int argc, char *argv[] )
 					CompressDeformationField2Short(deformationFieldFileName);
 			}
 
-
-			RemoveFile(deformedImageFileName);
-			char deformedImageFileNameImg[MAX_FILE_NAME_LENGTH];
-			MakeFileName(deformedImageFileNameImg, sub_ids[root], "_", sub_ids[i], "_cbq_", "reg", "img");
-			RemoveFile(deformedImageFileNameImg);
+            if (!isDebug) {
+                RemoveFile(deformedImageFileName);
+                char deformedImageFileNameImg[MAX_FILE_NAME_LENGTH];
+                MakeFileName(deformedImageFileNameImg, sub_ids[root], "_", sub_ids[i], "_cbq_", "reg", "img");
+                RemoveFile(deformedImageFileNameImg);
+            }
 		}
 	}
 	std::cerr << "Done!" << std::endl;
@@ -2568,25 +2569,27 @@ void DoPCATraining(char** deformationFieldFileNames, int numFiles, char** allImg
 				itksys::SystemTools::CopyFileAlways(curInterTempFileName, outDFName);
 			}
 			// remove irrelevant files
-			for (int i = 0; i < numAllCombinations; i++)
-			{
-				//
-				char curInterTempFileName[MAX_FILE_NAME_LENGTH];
-				char curInterTempImgFileName[MAX_FILE_NAME_LENGTH];
-				char curInterTempDeformFileName[MAX_FILE_NAME_LENGTH];
-				char curInterTempRevFileName[MAX_FILE_NAME_LENGTH];
-				char curInterTempSubFileName[MAX_FILE_NAME_LENGTH];
-				MakeFileName(curInterTempFileName, "inter", "_template_", i, "hdr");
-				MakeFileName(curInterTempImgFileName, "inter", "_template_", i, "img");
-				MakeFileName(curInterTempDeformFileName, "inter", "_deform_", i, "mha");
-				MakeFileName(curInterTempRevFileName, "inter", "_deform_reverse_", i, "mha");
-				MakeFileName(curInterTempSubFileName, "inter", "_deform_sub_", i, "mha");
-				RemoveFile(curInterTempFileName);
-				RemoveFile(curInterTempImgFileName);
-				RemoveFile(curInterTempDeformFileName);
-				RemoveFile(curInterTempRevFileName);
-				RemoveFile(curInterTempSubFileName);
-			}
+            if (!isDebug) {
+                for (int i = 0; i < numAllCombinations; i++)
+                {
+                    //
+                    char curInterTempFileName[MAX_FILE_NAME_LENGTH];
+                    char curInterTempImgFileName[MAX_FILE_NAME_LENGTH];
+                    char curInterTempDeformFileName[MAX_FILE_NAME_LENGTH];
+                    char curInterTempRevFileName[MAX_FILE_NAME_LENGTH];
+                    char curInterTempSubFileName[MAX_FILE_NAME_LENGTH];
+                    MakeFileName(curInterTempFileName, "inter", "_template_", i, "hdr");
+                    MakeFileName(curInterTempImgFileName, "inter", "_template_", i, "img");
+                    MakeFileName(curInterTempDeformFileName, "inter", "_deform_", i, "mha");
+                    MakeFileName(curInterTempRevFileName, "inter", "_deform_reverse_", i, "mha");
+                    MakeFileName(curInterTempSubFileName, "inter", "_deform_sub_", i, "mha");
+                    RemoveFile(curInterTempFileName);
+                    RemoveFile(curInterTempImgFileName);
+                    RemoveFile(curInterTempDeformFileName);
+                    RemoveFile(curInterTempRevFileName);
+                    RemoveFile(curInterTempSubFileName);
+                }
+            }
 			std::cerr << "Done!" << std::endl;
 			// clear newed variables
 			delete[] index;

@@ -24,7 +24,8 @@ function MergeRegionsOfInterestLONILPBA40 ( filenameWithoutExtension )
     I(I==64|I==86|I==89|I==101|I==122|I==165) = 8;
     
     assert(copyfile([filenameWithoutExtension, '.hdr'], ...
-        [filenameWithoutExtension, '_group.hdr']));
+        [filenameWithoutExtension, '_group.hdr']) & ...
+        fileattrib([filenameWithoutExtension, '_group.hdr'], '+w', 'u'));
     
     fOut = fopen([filenameWithoutExtension, '_group.img'], 'w');
     if header.image_dimension.datatype == 2

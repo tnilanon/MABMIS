@@ -3,7 +3,7 @@
 % IDEA Lab
 % Nov 12, 2012
 
-function header = readAnalyzeHeader ( filename )
+function header = ReadAnalyzeHeader ( filename )
     fp = fopen(filename, 'r');
     
     header.header_key.sizeof_hdr =      fread(fp, 1,    '*int32');

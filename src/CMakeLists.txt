@@ -1,0 +1,25 @@
+PROJECT(GorMABMIS)
+
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+
+FIND_PACKAGE(ITK)
+IF(ITK_FOUND)
+	INCLUDE(${ITK_USE_FILE})
+ELSE(ITK_FOUND)
+	MESSAGE(FATAL_ERROR "ITK not found. Please set ITK_DIR.")
+ENDIF(ITK_FOUND)
+
+ADD_LIBRARY(ITKJia3D itkJia3D.cxx itkJia3D.h)
+
+SET(MyITKLib ITKJia3D ITKCommon ITKIO ITKStatistics ITKNumerics)
+
+ADD_EXECUTABLE(MABMIS mabmis.cc mabmis.h)
+TARGET_LINK_LIBRARIES(MABMIS ${MyITKLib})
+
+ADD_EXECUTABLE(NormalizeIntensity normalize_intensity.cc)
+TARGET_LINK_LIBRARIES(NormalizeIntensity ${MyITKLib})
+
+ADD_EXECUTABLE(ApplyDeformationField apply_deformation_field.cc)
+TARGET_LINK_LIBRARIES(ApplyDeformationField ${MyITKLib})
+
+

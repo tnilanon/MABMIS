@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">
+   <FileRef
+      location = "group:../../Code/GorMABMIS/src/itkJia3D.cxx">
+   </FileRef>
+   <FileRef
+      location = "group:../../Code/GorMABMIS/src/itkJia3D.h">
+   </FileRef>
+   <FileRef
+      location = "container:mabmis.cc">
+   </FileRef>
+   <FileRef
+      location = "group:../../Code/GorMABMIS/src/mabmis.h">
+   </FileRef>
+   <FileRef
+      location = "group:../../Code/GorMABMIS/src/apply_deformation_field.cc">
+   </FileRef>
+   <FileRef
+      location = "group:../../Code/GorMABMIS/src/normalize_intensity.cc">
+   </FileRef>
+</Workspace>
